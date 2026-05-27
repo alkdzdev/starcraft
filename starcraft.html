@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STARCRAFT — Solar System Visualiser</title>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: Inter, Arial, sans-serif;
+    }
+
+    body {
+      overflow: hidden;
+      background: #000;
+      color: white;
+    }
+
+    canvas {
+      display: block;
+      cursor: grab;
+    }
+
+    .ui {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      z-index: 10;
+      width: 420px;
+      padding: 20px;
+      border-radius: 24px;
+      backdrop-filter: blur(14px);
+      background: rgba(10, 10, 10, 0.55);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow:
+        0 0 30px rgba(255,255,255,0.05),
+        0 0 60px rgba(255,0,0,0.06),
+        inset 0 0 20px rgba(255,255,255,0.02);
+    }
+
+    .title {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: 5px;
+      margin-bottom: 16px;
+      user-select: none;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      text-align: center;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-weight: 600;
+      appearance: none;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.05);
+      color: white;
+      padding: 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: 0.2s ease;
+      font-size: 14px;
+      flex: 1;
+      min-width: 90px;
+    }
+
+    #playPause {
+      font-size: 22px;
+      padding-top: 8px;
+      padding-bottom: 8px;
+      min-width: 70px;
+    }
+
+    .btn:hover {
+      background: rgba(255,255,255,0.1);
+      transform: translateY(-1px);
+    }
+
+    .tooltip {
+      position: absolute;
+      z-index: 100;
+      min-width: 220px;
+      padding: 14px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.78);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(10px);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.2s ease;
+    }
+
+    .tooltip.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .tooltip h3 {
+      color: white;
+      margin-bottom: 12px;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
+    .tooltip p {
+      color: rgba(255,255,255,0.82);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .legend {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      z-index: 10;
+      display: flex;
+      gap: 14px;
+      padding: 12px 16px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.06);
+      backdrop-filter: blur(10px);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.8);
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .sun-dot { background: #ffbf47; }
+    .earth-dot { background: #5bc0ff; }
+    .moon-dot { background: #d9d9d9; }
+  </style>
+</head>
+<body>
+
+  <div class="ui">
+    <div class="title">
+      <span style="color:white;">STAR</span><span style="color:#ff3b3b;">CRAFT</span>
+    </div>
+
+    
+
+    <div class="controls">
+      <button class="btn" id="playPause">⏸</button>
+
+      <select class="btn" id="speedControl">
+        <option value="1" selected>1x</option>
+        <option value="1000">1,000x</option>
+        <option value="10000">10,000x</option>
+        <option value="100000">100,000x</option>
+        <option value="500000">500,000x</option>
+      </select>
+      <button class="btn" id="backToCenter">Centre</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item">
+      <div class="dot sun-dot"></div>
+      Sun
+    </div>
+
+    <div class="legend-item">
+      <div class="dot earth-dot"></div>
+      Earth
+    </div>
+
+    <div class="legend-item">
+      <div class="dot moon-dot"></div>
+      Moon
+    </div>
+  </div>
+
+  <canvas id="space"></canvas>
+  <div class="tooltip" id="tooltip"></div>
+
+  <script>
+    const canvas = document.getElementById('space');
+    const ctx = canvas.getContext('2d');
+
+    const tooltip = document.getElementById('tooltip');
+    const playPauseBtn = document.getElementById('playPause');
+    const speedControl = document.getElementById('speedControl');
+    const backToCenterBtn = document.getElementById('backToCenter');
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+
+    const stars = [];
+
+    for (let i = 0; i < 250; i++) {
+      stars.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        r: Math.random() * 2,
+        a: Math.random()
+      });
+    }
+
+    let earthAngle = 0;
+    let moonAngle = 0;
+
+    // Real orbital periods
+    const EARTH_ORBIT_SECONDS = 365.25 * 24 * 60 * 60;
+    const MOON_ORBIT_SECONDS = 27.3 * 24 * 60 * 60;
+    let zoom = 1;
+    let speedMultiplier = 1;
+    let isPaused = false;
+    let lastFrameTime = performance.now();
+
+    let mouseX = 0;
+    let mouseY = 0;
+
+    let cameraOffsetX = 0;
+    let cameraOffsetY = 0;
+
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+
+    const bodyData = {
+      sun: {
+        name: 'Sun',
+        color: '#ffb347',
+        type: 'G-Type Main-Sequence Star',
+        distance: '0 km'
+      },
+      earth: {
+        name: 'Earth',
+        color: '#58c7ff',
+        type: 'Terrestrial Planet',
+        distance: '149.6 million km'
+      },
+      moon: {
+        name: 'Moon',
+        color: '#e2e2e2',
+        type: 'Natural Satellite',
+        distance: '149.6 million km'
+      }
+    };
+
+    function drawStars() {
+      for (const star of stars) {
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255,255,255,${star.a})`;
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function orbitRing(x, y, radius) {
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    function glowCircle(x, y, radius, color) {
+      const gradient = ctx.createRadialGradient(x, y, radius * 0.2, x, y, radius * 3);
+      gradient.addColorStop(0, color);
+      gradient.addColorStop(1, 'transparent');
+
+      ctx.beginPath();
+      ctx.fillStyle = gradient;
+      ctx.arc(x, y, radius * 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.fillStyle = color;
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function distance(ax, ay, bx, by) {
+      return Math.hypot(ax - bx, ay - by);
+    }
+
+    function showTooltip(data, x, y) {
+      tooltip.innerHTML = `
+        <h3 style="color: ${data.color};">${data.name}</h3>
+        <p>
+          <b>Type</b> ${data.type}<br><br>
+          <b>Distance</b> ${data.distance}
+        </p>
+      `;
+
+      tooltip.style.left = `${x + 18}px`;
+      tooltip.style.top = `${y + 18}px`;
+      tooltip.classList.add('visible');
+    }
+
+    function hideTooltip() {
+      tooltip.classList.remove('visible');
+    }
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+
+      const delta = e.deltaY * -0.001;
+      zoom += delta;
+      zoom = Math.min(Math.max(0.4, zoom), 4);
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+
+      if (isDragging) {
+        cameraOffsetX = e.clientX - dragStartX;
+        cameraOffsetY = e.clientY - dragStartY;
+      }
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      dragStartX = e.clientX - cameraOffsetX;
+      dragStartY = e.clientY - cameraOffsetY;
+      canvas.style.cursor = 'grabbing';
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDragging = false;
+      canvas.style.cursor = 'grab';
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      isDragging = false;
+      canvas.style.cursor = 'grab';
+    });
+
+    playPauseBtn.addEventListener('click', () => {
+      isPaused = !isPaused;
+
+      playPauseBtn.innerHTML = isPaused
+        ? '▶'
+        : '⏸';
+    });
+
+    speedControl.addEventListener('change', () => {
+      speedMultiplier = parseFloat(speedControl.value);
+    });
+
+    backToCenterBtn.addEventListener('click', () => {
+      cameraOffsetX = 0;
+      cameraOffsetY = 0;
+    });
+
+    function render(currentTime) {
+      const deltaSeconds = (currentTime - lastFrameTime) / 1000;
+      lastFrameTime = currentTime;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // OLED-friendly pure black background
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const centerX = canvas.width / 2 + cameraOffsetX;
+      const centerY = canvas.height / 2 + cameraOffsetY;
+
+      const earthOrbit = 220 * zoom;
+      const moonOrbit = 40 * zoom;
+
+      const sunRadius = 40 * zoom;
+      const earthRadius = 14 * zoom;
+      const moonRadius = 5 * zoom;
+
+      orbitRing(centerX, centerY, earthOrbit);
+
+      glowCircle(centerX, centerY, sunRadius, '#ffb347');
+
+      const earthX = centerX + Math.cos(earthAngle) * earthOrbit;
+      const earthY = centerY + Math.sin(earthAngle) * earthOrbit;
+
+      orbitRing(earthX, earthY, moonOrbit);
+
+      glowCircle(earthX, earthY, earthRadius, '#58c7ff');
+
+      const moonX = earthX + Math.cos(moonAngle) * moonOrbit;
+      const moonY = earthY + Math.sin(moonAngle) * moonOrbit;
+
+      glowCircle(moonX, moonY, moonRadius, '#e2e2e2');
+
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(91,192,255,0.3)';
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(earthX, earthY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.moveTo(earthX, earthY);
+      ctx.lineTo(moonX, moonY);
+      ctx.stroke();
+
+      hideTooltip();
+
+      if (distance(mouseX, mouseY, centerX, centerY) < sunRadius + 10) {
+        showTooltip(bodyData.sun, mouseX, mouseY);
+      } else if (distance(mouseX, mouseY, earthX, earthY) < earthRadius + 10) {
+        showTooltip(bodyData.earth, mouseX, mouseY);
+      } else if (distance(mouseX, mouseY, moonX, moonY) < moonRadius + 10) {
+        showTooltip(bodyData.moon, mouseX, mouseY);
+      }
+
+      if (!isPaused) {
+        const earthAngularVelocity = (Math.PI * 2) / EARTH_ORBIT_SECONDS;
+        const moonAngularVelocity = (Math.PI * 2) / MOON_ORBIT_SECONDS;
+
+        earthAngle += earthAngularVelocity * deltaSeconds * speedMultiplier;
+        moonAngle += moonAngularVelocity * deltaSeconds * speedMultiplier;
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    render(performance.now());
+  </script>
+</body>
+</html>
