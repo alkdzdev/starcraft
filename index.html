@@ -155,6 +155,7 @@
     .sun-dot { background: #ffbf47; }
     .earth-dot { background: #5bc0ff; }
     .moon-dot { background: #d9d9d9; }
+    .mars-dot { background: #d96b43; }
   </style>
 </head>
 <body>
@@ -175,6 +176,11 @@
         <option value="10000">10,000x</option>
         <option value="100000">100,000x</option>
         <option value="500000">500,000x</option>
+        <option value="1000000">1,000,000x</option>
+        <option value="5000000">5,000,000x</option>
+        <option value="10000000">10,000,000x</option>
+        <option value="50000000">50,000,000x</option>
+        <option value="100000000">100,000,000x</option>
       </select>
       <button class="btn" id="backToCenter">Centre</button>
     </div>
@@ -194,6 +200,11 @@
     <div class="legend-item">
       <div class="dot moon-dot"></div>
       Moon
+    </div>
+
+    <div class="legend-item">
+      <div class="dot mars-dot"></div>
+      Mars
     </div>
   </div>
 
@@ -230,10 +241,12 @@
 
     let earthAngle = 0;
     let moonAngle = 0;
+    let marsAngle = 0;
 
     // Real orbital periods
     const EARTH_ORBIT_SECONDS = 365.25 * 24 * 60 * 60;
     const MOON_ORBIT_SECONDS = 27.3 * 24 * 60 * 60;
+    const MARS_ORBIT_SECONDS = 687 * 24 * 60 * 60;
     let zoom = 1;
     let speedMultiplier = 1;
     let isPaused = false;
@@ -267,6 +280,12 @@
         color: '#e2e2e2',
         type: 'Natural Satellite',
         distance: '149.6 million km'
+      },
+      mars: {
+        name: 'Mars',
+        color: '#d96b43',
+        type: 'Terrestrial Planet',
+        distance: '227.9 million km'
       }
     };
 
@@ -390,22 +409,29 @@
       const centerY = canvas.height / 2 + cameraOffsetY;
 
       const earthOrbit = 220 * zoom;
+      const marsOrbit = 340 * zoom;
       const moonOrbit = 40 * zoom;
 
       const sunRadius = 40 * zoom;
       const earthRadius = 14 * zoom;
+      const marsRadius = 11 * zoom;
       const moonRadius = 5 * zoom;
 
       orbitRing(centerX, centerY, earthOrbit);
+      orbitRing(centerX, centerY, marsOrbit);
 
       glowCircle(centerX, centerY, sunRadius, '#ffb347');
 
       const earthX = centerX + Math.cos(earthAngle) * earthOrbit;
       const earthY = centerY + Math.sin(earthAngle) * earthOrbit;
 
+      const marsX = centerX + Math.cos(marsAngle) * marsOrbit;
+      const marsY = centerY + Math.sin(marsAngle) * marsOrbit;
+
       orbitRing(earthX, earthY, moonOrbit);
 
       glowCircle(earthX, earthY, earthRadius, '#58c7ff');
+      glowCircle(marsX, marsY, marsRadius, '#d96b43');
 
       const moonX = earthX + Math.cos(moonAngle) * moonOrbit;
       const moonY = earthY + Math.sin(moonAngle) * moonOrbit;
@@ -432,14 +458,18 @@
         showTooltip(bodyData.earth, mouseX, mouseY);
       } else if (distance(mouseX, mouseY, moonX, moonY) < moonRadius + 10) {
         showTooltip(bodyData.moon, mouseX, mouseY);
+      } else if (distance(mouseX, mouseY, marsX, marsY) < marsRadius + 10) {
+        showTooltip(bodyData.mars, mouseX, mouseY);
       }
 
       if (!isPaused) {
         const earthAngularVelocity = (Math.PI * 2) / EARTH_ORBIT_SECONDS;
         const moonAngularVelocity = (Math.PI * 2) / MOON_ORBIT_SECONDS;
+        const marsAngularVelocity = (Math.PI * 2) / MARS_ORBIT_SECONDS;
 
         earthAngle += earthAngularVelocity * deltaSeconds * speedMultiplier;
         moonAngle += moonAngularVelocity * deltaSeconds * speedMultiplier;
+        marsAngle += marsAngularVelocity * deltaSeconds * speedMultiplier;
       }
 
       requestAnimationFrame(render);
