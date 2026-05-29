@@ -153,6 +153,7 @@
     }
 
     .sun-dot { background: #ffbf47; }
+    .venus-dot { background: #f4d28a; }
     .earth-dot { background: #5bc0ff; }
     .moon-dot { background: #d9d9d9; }
     .mars-dot { background: #d96b43; }
@@ -190,6 +191,11 @@
     <div class="legend-item">
       <div class="dot sun-dot"></div>
       Sun
+    </div>
+
+    <div class="legend-item">
+      <div class="dot venus-dot"></div>
+      Venus
     </div>
 
     <div class="legend-item">
@@ -242,8 +248,10 @@
     let earthAngle = 0;
     let moonAngle = 0;
     let marsAngle = 0;
+    let venusAngle = 0;
 
     // Real orbital periods
+    const VENUS_ORBIT_SECONDS = 224.7 * 24 * 60 * 60;
     const EARTH_ORBIT_SECONDS = 365.25 * 24 * 60 * 60;
     const MOON_ORBIT_SECONDS = 27.3 * 24 * 60 * 60;
     const MARS_ORBIT_SECONDS = 687 * 24 * 60 * 60;
@@ -268,6 +276,12 @@
         color: '#ffb347',
         type: 'G-Type Main-Sequence Star',
         distance: '0 km'
+      },
+      venus: {
+        name: 'Venus',
+        color: '#f4d28a',
+        type: 'Terrestrial Planet',
+        distance: '108.2 million km'
       },
       earth: {
         name: 'Earth',
@@ -408,19 +422,25 @@
       const centerX = canvas.width / 2 + cameraOffsetX;
       const centerY = canvas.height / 2 + cameraOffsetY;
 
+      const venusOrbit = 160 * zoom;
       const earthOrbit = 220 * zoom;
       const marsOrbit = 340 * zoom;
       const moonOrbit = 40 * zoom;
 
       const sunRadius = 40 * zoom;
+      const venusRadius = 12 * zoom;
       const earthRadius = 14 * zoom;
       const marsRadius = 11 * zoom;
       const moonRadius = 5 * zoom;
 
+      orbitRing(centerX, centerY, venusOrbit);
       orbitRing(centerX, centerY, earthOrbit);
       orbitRing(centerX, centerY, marsOrbit);
 
       glowCircle(centerX, centerY, sunRadius, '#ffb347');
+
+      const venusX = centerX + Math.cos(venusAngle) * venusOrbit;
+      const venusY = centerY + Math.sin(venusAngle) * venusOrbit;
 
       const earthX = centerX + Math.cos(earthAngle) * earthOrbit;
       const earthY = centerY + Math.sin(earthAngle) * earthOrbit;
@@ -430,6 +450,7 @@
 
       orbitRing(earthX, earthY, moonOrbit);
 
+      glowCircle(venusX, venusY, venusRadius, '#f4d28a');
       glowCircle(earthX, earthY, earthRadius, '#58c7ff');
       glowCircle(marsX, marsY, marsRadius, '#d96b43');
 
@@ -454,6 +475,8 @@
 
       if (distance(mouseX, mouseY, centerX, centerY) < sunRadius + 10) {
         showTooltip(bodyData.sun, mouseX, mouseY);
+      } else if (distance(mouseX, mouseY, venusX, venusY) < venusRadius + 10) {
+        showTooltip(bodyData.venus, mouseX, mouseY);
       } else if (distance(mouseX, mouseY, earthX, earthY) < earthRadius + 10) {
         showTooltip(bodyData.earth, mouseX, mouseY);
       } else if (distance(mouseX, mouseY, moonX, moonY) < moonRadius + 10) {
@@ -463,10 +486,12 @@
       }
 
       if (!isPaused) {
+        const venusAngularVelocity = (Math.PI * 2) / VENUS_ORBIT_SECONDS;
         const earthAngularVelocity = (Math.PI * 2) / EARTH_ORBIT_SECONDS;
         const moonAngularVelocity = (Math.PI * 2) / MOON_ORBIT_SECONDS;
         const marsAngularVelocity = (Math.PI * 2) / MARS_ORBIT_SECONDS;
 
+        venusAngle += venusAngularVelocity * deltaSeconds * speedMultiplier;
         earthAngle += earthAngularVelocity * deltaSeconds * speedMultiplier;
         moonAngle += moonAngularVelocity * deltaSeconds * speedMultiplier;
         marsAngle += marsAngularVelocity * deltaSeconds * speedMultiplier;
